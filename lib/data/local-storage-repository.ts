@@ -1,5 +1,4 @@
 import { BUSINESSES } from "@/lib/data/businesses";
-import { generateSeedTransactions } from "@/lib/data/seed";
 import type { DataRepository } from "@/lib/data/repository";
 import type {
   Business,
@@ -11,7 +10,6 @@ import type {
 } from "@/lib/types";
 
 const TRANSACTIONS_KEY = "expense-tracker:transactions";
-const SEEDED_KEY = "expense-tracker:seeded";
 const VENDORS_KEY = "expense-tracker:vendors";
 
 function readAll(): Transaction[] {
@@ -28,13 +26,6 @@ function readAll(): Transaction[] {
 function writeAll(transactions: Transaction[]): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
-}
-
-function ensureSeeded(): void {
-  if (typeof window === "undefined") return;
-  if (window.localStorage.getItem(SEEDED_KEY)) return;
-  writeAll(generateSeedTransactions());
-  window.localStorage.setItem(SEEDED_KEY, "1");
 }
 
 function createId(): string {
@@ -71,14 +62,12 @@ export class LocalStorageRepository implements DataRepository {
   }
 
   async listTransactions(businessId: BusinessId): Promise<Transaction[]> {
-    ensureSeeded();
     return readAll()
       .filter((t) => t.businessId === businessId)
       .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
   }
 
   async createTransaction(input: TransactionInput): Promise<Transaction> {
-    ensureSeeded();
     const transaction = {
       ...input,
       id: createId(),
@@ -105,6 +94,10 @@ export class LocalStorageRepository implements DataRepository {
   async deleteTransaction(id: string): Promise<void> {
     const all = readAll();
     writeAll(all.filter((t) => t.id !== id));
+  }
+
+  async clearAllTransactions(): Promise<void> {
+    writeAll([]);
   }
 
   async listVendors(businessId: BusinessId): Promise<RecurringVendor[]> {

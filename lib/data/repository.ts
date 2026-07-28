@@ -19,6 +19,7 @@ export interface DataRepository {
   createTransaction(input: TransactionInput): Promise<Transaction>;
   updateTransaction(id: string, input: TransactionInput): Promise<Transaction>;
   deleteTransaction(id: string): Promise<void>;
+  clearAllTransactions(): Promise<void>;
   listVendors(businessId: BusinessId): Promise<RecurringVendor[]>;
   createVendor(input: RecurringVendorInput): Promise<RecurringVendor>;
   updateVendor(id: string, input: RecurringVendorInput): Promise<RecurringVendor>;

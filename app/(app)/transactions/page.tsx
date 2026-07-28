@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Upload } from "lucide-react";
+import { Trash2, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TransactionFilters, type TransactionTypeFilter } from "@/components/transactions/transaction-filters";
@@ -16,7 +16,8 @@ import { monthKey } from "@/lib/utils";
 import type { IncomeTransaction, ExpenseTransaction, Transaction } from "@/lib/types";
 
 export default function TransactionsPage() {
-  const { transactions, editTransaction, removeTransaction, addTransactions } = useTransactionsContext();
+  const { transactions, editTransaction, removeTransaction, addTransactions, clearAllTransactions } =
+    useTransactionsContext();
   const { business } = useBusiness();
   const [importOpen, setImportOpen] = useState(false);
 
@@ -76,15 +77,32 @@ export default function TransactionsPage() {
     toast.success("התנועה נמחקה");
   }
 
+  async function handleClearAll() {
+    const confirmed = window.confirm(
+      "פעולה זו תמחק לצמיתות את כל ההכנסות וההוצאות של שני העסקים (Chen Digital והפיצרייה). ספקים קבועים ופניות לא יימחקו. להמשיך?"
+    );
+    if (!confirmed) return;
+    await clearAllTransactions();
+    toast.success("כל התנועות נמחקו");
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>כל התנועות</CardTitle>
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <Upload className="size-4" />
-            ייבוא הכנסות מקובץ
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload className="size-4" />
+              ייבוא הכנסות מקובץ
+            </Button>
+            {transactions.length > 0 && (
+              <Button variant="ghost" className="text-destructive" onClick={handleClearAll}>
+                <Trash2 className="size-4" />
+                איפוס כל התנועות
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <TransactionFilters

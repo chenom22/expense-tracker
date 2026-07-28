@@ -68,6 +68,11 @@ export function useTransactions(businessId: BusinessId) {
     [load]
   );
 
+  const clearAllTransactions = useCallback(async () => {
+    await repository.clearAllTransactions();
+    await load();
+  }, [load]);
+
   const currentMonth = currentMonthKey();
 
   const monthStats = useMemo(() => {
@@ -136,6 +141,7 @@ export function useTransactions(businessId: BusinessId) {
     channelBreakdown,
     addTransaction,
     addTransactions,
+    clearAllTransactions,
     editTransaction,
     removeTransaction,
   };
