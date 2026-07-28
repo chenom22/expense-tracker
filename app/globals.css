@@ -1,0 +1,125 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-income: var(--income);
+  --color-income-foreground: var(--income-foreground);
+  --color-expense: var(--expense);
+  --color-expense-foreground: var(--expense-foreground);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* בסיס חם ורך */
+  --background: #fdfbf9;
+  --foreground: #2c2521;
+  --card: #ffffff;
+  --card-foreground: #2c2521;
+  --popover: #ffffff;
+  --popover-foreground: #2c2521;
+
+  /* accent ראשי: מוב-רוז מעומעם (Chen Digital) */
+  --primary: #93586a;
+  --primary-foreground: #fdfbf9;
+  --secondary: #f4eeec;
+  --secondary-foreground: #43362f;
+  --muted: #f6f1ee;
+  --muted-foreground: #8a7d76;
+  --accent: #f3e6ea;
+  --accent-foreground: #6d3f4d;
+
+  /* סמנטיקה */
+  --destructive: #b3454f;
+  --income: #5f8566;
+  --income-foreground: #fdfbf9;
+  --expense: #b1666b;
+  --expense-foreground: #fdfbf9;
+
+  --border: #ece3df;
+  --input: #ece3df;
+  --ring: #b98ba0;
+
+  /* גרפים - פלטה מתונה */
+  --chart-1: #b98ba0;
+  --chart-2: #8fa383;
+  --chart-3: #d4a857;
+  --chart-4: #86a0ad;
+  --chart-5: #c1794f;
+
+  --radius: 0.9rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #2c2521;
+  --sidebar-primary: #93586a;
+  --sidebar-primary-foreground: #fdfbf9;
+  --sidebar-accent: #f3e6ea;
+  --sidebar-accent-foreground: #6d3f4d;
+  --sidebar-border: #ece3df;
+  --sidebar-ring: #b98ba0;
+}
+
+/* accent שני: טרקוטה/זית מעומעם - עסק הפיצה */
+[data-business-theme="omri-pizza"] {
+  --primary: #b2703f;
+  --primary-foreground: #fdfbf9;
+  --accent: #f2e6d8;
+  --accent-foreground: #6d4a28;
+  --ring: #c1794f;
+  --sidebar-primary: #b2703f;
+  --sidebar-accent: #f2e6d8;
+  --sidebar-accent-foreground: #6d4a28;
+  --sidebar-ring: #c1794f;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
