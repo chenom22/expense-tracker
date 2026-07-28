@@ -33,6 +33,7 @@ const incomeSchema = z.object({
   amount: z.coerce.number({ message: "יש להזין מספר" }).positive("הסכום חייב להיות גדול מ-0"),
   source: z.string().min(1, "שדה חובה"),
   category: z.string().min(1, "יש לבחור קטגוריה"),
+  channel: z.string().min(1, "יש לבחור ערוץ הכנסה"),
   paymentMethod: z.string().min(1, "יש לבחור אמצעי תשלום"),
   note: z.string().optional(),
 });
@@ -46,12 +47,13 @@ interface IncomeFormDialogProps {
   onSubmit: (input: TransactionInput) => Promise<void>;
 }
 
-function emptyValues(defaultCategory: string): IncomeFormValues {
+function emptyValues(defaultCategory: string, defaultChannel: string): IncomeFormValues {
   return {
     date: todayISO(),
     amount: 0,
     source: "",
     category: defaultCategory,
+    channel: defaultChannel,
     paymentMethod: "העברה בנקאית",
     note: "",
   };
@@ -67,7 +69,7 @@ export function IncomeFormDialog({ open, onOpenChange, transaction, onSubmit }: 
     formState: { errors, isSubmitting },
   } = useForm<IncomeFormValues>({
     resolver: zodResolver(incomeSchema),
-    defaultValues: emptyValues(business.incomeCategories[0]),
+    defaultValues: emptyValues(business.incomeCategories[0], business.incomeChannels[0]),
   });
 
   useEffect(() => {
@@ -78,11 +80,12 @@ export function IncomeFormDialog({ open, onOpenChange, transaction, onSubmit }: 
         amount: transaction.amount,
         source: transaction.source,
         category: transaction.category,
+        channel: transaction.channel,
         paymentMethod: transaction.paymentMethod,
         note: transaction.note ?? "",
       });
     } else {
-      reset(emptyValues(business.incomeCategories[0]));
+      reset(emptyValues(business.incomeCategories[0], business.incomeChannels[0]));
     }
   }, [open, transaction, business, reset]);
 
@@ -95,6 +98,7 @@ export function IncomeFormDialog({ open, onOpenChange, transaction, onSubmit }: 
         amount: values.amount,
         source: values.source.trim(),
         category: values.category,
+        channel: values.channel,
         paymentMethod: values.paymentMethod as TransactionInput["paymentMethod"],
         note: values.note?.trim() || undefined,
       });
@@ -162,6 +166,29 @@ export function IncomeFormDialog({ open, onOpenChange, transaction, onSubmit }: 
             </div>
 
             <div className="space-y-1.5">
+              <Label>ערוץ הכנסה</Label>
+              <Controller
+                control={control}
+                name="channel"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="בחרו ערוץ" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {business.incomeChannels.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.channel && <p className="text-xs text-destructive">{errors.channel.message}</p>}
+            </div>
+
+            <div className="col-span-2 space-y-1.5">
               <Label>אמצעי תשלום</Label>
               <Controller
                 control={control}

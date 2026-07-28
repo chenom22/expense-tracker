@@ -1,10 +1,18 @@
 import { BUSINESSES } from "@/lib/data/businesses";
 import { generateSeedTransactions } from "@/lib/data/seed";
 import type { DataRepository } from "@/lib/data/repository";
-import type { Business, BusinessId, Transaction, TransactionInput } from "@/lib/types";
+import type {
+  Business,
+  BusinessId,
+  RecurringVendor,
+  RecurringVendorInput,
+  Transaction,
+  TransactionInput,
+} from "@/lib/types";
 
 const TRANSACTIONS_KEY = "expense-tracker:transactions";
 const SEEDED_KEY = "expense-tracker:seeded";
+const VENDORS_KEY = "expense-tracker:vendors";
 
 function readAll(): Transaction[] {
   if (typeof window === "undefined") return [];
@@ -34,6 +42,22 @@ function createId(): string {
     return crypto.randomUUID();
   }
   return `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function readVendors(): RecurringVendor[] {
+  if (typeof window === "undefined") return [];
+  const raw = window.localStorage.getItem(VENDORS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as RecurringVendor[];
+  } catch {
+    return [];
+  }
+}
+
+function writeVendors(vendors: RecurringVendor[]): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(VENDORS_KEY, JSON.stringify(vendors));
 }
 
 /**
@@ -81,5 +105,36 @@ export class LocalStorageRepository implements DataRepository {
   async deleteTransaction(id: string): Promise<void> {
     const all = readAll();
     writeAll(all.filter((t) => t.id !== id));
+  }
+
+  async listVendors(businessId: BusinessId): Promise<RecurringVendor[]> {
+    return readVendors()
+      .filter((v) => v.businessId === businessId)
+      .sort((a, b) => a.name.localeCompare(b.name, "he"));
+  }
+
+  async createVendor(input: RecurringVendorInput): Promise<RecurringVendor> {
+    const vendor: RecurringVendor = { ...input, id: createId() };
+    const all = readVendors();
+    all.push(vendor);
+    writeVendors(all);
+    return vendor;
+  }
+
+  async updateVendor(id: string, input: RecurringVendorInput): Promise<RecurringVendor> {
+    const all = readVendors();
+    const index = all.findIndex((v) => v.id === id);
+    if (index === -1) {
+      throw new Error("ספק לא נמצא");
+    }
+    const updated: RecurringVendor = { ...input, id };
+    all[index] = updated;
+    writeVendors(all);
+    return updated;
+  }
+
+  async deleteVendor(id: string): Promise<void> {
+    const all = readVendors();
+    writeVendors(all.filter((v) => v.id !== id));
   }
 }

@@ -1,3 +1,4 @@
+import { getBusiness } from "@/lib/data/businesses";
 import type {
   BusinessId,
   ExpenseTransaction,
@@ -74,6 +75,7 @@ function buildIncome(
       amount: randomAmount(spec.amountRange[0], spec.amountRange[1]),
       category: spec.category,
       source: pick(spec.sources),
+      channel: pick(getBusiness(businessId)!.incomeChannels),
       paymentMethod: pick(PAYMENT_METHODS),
       createdAt: new Date(date).toISOString(),
     } satisfies IncomeTransaction;

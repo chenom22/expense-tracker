@@ -11,7 +11,7 @@ import { useTransactionsContext } from "@/context/transactions-context";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { transactions, monthStats, monthlySeries, categoryBreakdown, loading } =
+  const { transactions, monthStats, monthlySeries, categoryBreakdown, channelBreakdown, loading } =
     useTransactionsContext();
 
   const recent = transactions.slice(0, 6);
@@ -31,22 +31,31 @@ export default function DashboardPage() {
         <KpiCard label="מספר הוצאות" value={String(monthStats.expenseCount)} icon={Receipt} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>הכנסות מול הוצאות לפי חודשים</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <IncomeExpenseChart data={monthlySeries} />
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>הכנסות מול הוצאות לפי חודשים</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <IncomeExpenseChart data={monthlySeries} />
+        </CardContent>
+      </Card>
 
-        <Card className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
           <CardHeader>
             <CardTitle>חלוקת הוצאות לפי קטגוריה</CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryBreakdownChart data={categoryBreakdown} />
+            <CategoryBreakdownChart data={categoryBreakdown} emptyMessage="אין הוצאות החודש להצגה" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>חלוקת הכנסות לפי ערוץ</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CategoryBreakdownChart data={channelBreakdown} emptyMessage="אין הכנסות החודש להצגה" />
           </CardContent>
         </Card>
       </div>

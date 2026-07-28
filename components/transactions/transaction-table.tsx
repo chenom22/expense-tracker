@@ -60,9 +60,16 @@ export function TransactionTable({ transactions, onEdit, onDelete }: Transaction
             </TableCell>
             <TableCell className="max-w-40 truncate">{t.type === "income" ? t.source : t.vendor}</TableCell>
             <TableCell>
-              <Badge variant="outline" className="font-normal">
-                {t.category}
-              </Badge>
+              <div className="flex flex-wrap gap-1">
+                <Badge variant="outline" className="font-normal">
+                  {t.category}
+                </Badge>
+                {t.type === "income" && (
+                  <Badge variant="outline" className="font-normal text-muted-foreground">
+                    {t.channel}
+                  </Badge>
+                )}
+              </div>
             </TableCell>
             <TableCell className="text-muted-foreground">{t.paymentMethod}</TableCell>
             <TableCell className="max-w-40 truncate text-muted-foreground">{t.note || "—"}</TableCell>

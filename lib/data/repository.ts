@@ -1,4 +1,11 @@
-import type { Business, BusinessId, Transaction, TransactionInput } from "@/lib/types";
+import type {
+  Business,
+  BusinessId,
+  RecurringVendor,
+  RecurringVendorInput,
+  Transaction,
+  TransactionInput,
+} from "@/lib/types";
 
 /**
  * חוזה שכבת הנתונים. המימוש הנוכחי (local-storage-repository.ts) עובד מעל
@@ -12,4 +19,8 @@ export interface DataRepository {
   createTransaction(input: TransactionInput): Promise<Transaction>;
   updateTransaction(id: string, input: TransactionInput): Promise<Transaction>;
   deleteTransaction(id: string): Promise<void>;
+  listVendors(businessId: BusinessId): Promise<RecurringVendor[]>;
+  createVendor(input: RecurringVendorInput): Promise<RecurringVendor>;
+  updateVendor(id: string, input: RecurringVendorInput): Promise<RecurringVendor>;
+  deleteVendor(id: string): Promise<void>;
 }

@@ -5,6 +5,7 @@ export const BUSINESSES: Business[] = [
     id: "chen-digital",
     name: "Chen Digital",
     incomeCategories: ["בניית אתרים", "עיצוב", "תחזוקה", "אוטומציות", "אחר"],
+    incomeChannels: ["Sumit", "העברה ישירה", "אחר"],
     expenseCategories: [
       "תוכנות",
       "פרסום",
@@ -19,6 +20,7 @@ export const BUSINESSES: Business[] = [
     id: "omri-pizza",
     name: "העסק של עומרי – פיצה",
     incomeCategories: ["מכירות", "משלוחים", "אירועים", "אחר"],
+    incomeChannels: ["אתר", "וולט", "משלוחה עצמאית", "קופה/חנות", "אחר"],
     expenseCategories: [
       "חומרי גלם",
       "עובדים",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useBusiness } from "@/context/business-context";
+import { useVendors } from "@/hooks/use-vendors";
 import { todayISO } from "@/lib/utils";
 import { EXPENSE_RECURRENCES, PAYMENT_METHODS } from "@/lib/types";
 import type { ExpenseRecurrence, ExpenseTransaction, PaymentMethod, TransactionInput } from "@/lib/types";
@@ -61,11 +62,14 @@ function emptyValues(defaultCategory: string): ExpenseFormValues {
 
 export function ExpenseFormDialog({ open, onOpenChange, transaction, onSubmit }: ExpenseFormDialogProps) {
   const { business } = useBusiness();
+  const { vendors } = useVendors(business.id);
+  const [selectedVendorId, setSelectedVendorId] = useState("");
   const {
     register,
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseSchema),
@@ -74,6 +78,9 @@ export function ExpenseFormDialog({ open, onOpenChange, transaction, onSubmit }:
 
   useEffect(() => {
     if (!open) return;
+    // Reset the quick-fill picker whenever the dialog reopens (not during render).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedVendorId("");
     if (transaction) {
       reset({
         date: transaction.date,
@@ -88,6 +95,17 @@ export function ExpenseFormDialog({ open, onOpenChange, transaction, onSubmit }:
       reset(emptyValues(business.expenseCategories[0]));
     }
   }, [open, transaction, business, reset]);
+
+  function handlePickVendor(vendorId: string) {
+    setSelectedVendorId(vendorId);
+    const vendor = vendors.find((v) => v.id === vendorId);
+    if (!vendor) return;
+    setValue("vendor", vendor.name);
+    setValue("category", vendor.category);
+    setValue("paymentMethod", vendor.paymentMethod);
+    setValue("recurrence", "קבועה");
+    if (vendor.defaultAmount) setValue("amount", vendor.defaultAmount);
+  }
 
   async function submit(values: ExpenseFormValues) {
     try {
@@ -118,6 +136,28 @@ export function ExpenseFormDialog({ open, onOpenChange, transaction, onSubmit }:
 
         <form onSubmit={handleSubmit(submit)} className="contents">
           <div className="grid grid-cols-2 gap-4">
+            {!transaction && vendors.length > 0 && (
+              <div className="col-span-2 space-y-1.5">
+                <Label>מילוי מהיר מספק קבוע</Label>
+                <Select
+                  value={selectedVendorId}
+                  onValueChange={(v) => handlePickVendor(v ?? "")}
+                  items={Object.fromEntries(vendors.map((v) => [v.id, v.name]))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="בחרו ספק קבוע (לא חובה)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vendors.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label htmlFor="expense-date">תאריך</Label>
               <Input id="expense-date" type="date" {...register("date")} />

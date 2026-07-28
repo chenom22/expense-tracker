@@ -2,19 +2,23 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { TransactionFilters, type TransactionTypeFilter } from "@/components/transactions/transaction-filters";
 import { TransactionTable } from "@/components/transactions/transaction-table";
 import { IncomeFormDialog } from "@/components/transactions/income-form-dialog";
 import { ExpenseFormDialog } from "@/components/transactions/expense-form-dialog";
+import { ImportIncomeDialog } from "@/components/transactions/import-income-dialog";
 import { useTransactionsContext } from "@/context/transactions-context";
 import { useBusiness } from "@/context/business-context";
 import { monthKey } from "@/lib/utils";
 import type { IncomeTransaction, ExpenseTransaction, Transaction } from "@/lib/types";
 
 export default function TransactionsPage() {
-  const { transactions, editTransaction, removeTransaction } = useTransactionsContext();
+  const { transactions, editTransaction, removeTransaction, addTransactions } = useTransactionsContext();
   const { business } = useBusiness();
+  const [importOpen, setImportOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState("all");
@@ -75,8 +79,12 @@ export default function TransactionsPage() {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>כל התנועות</CardTitle>
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="size-4" />
+            ייבוא הכנסות מקובץ
+          </Button>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <TransactionFilters
@@ -107,6 +115,7 @@ export default function TransactionsPage() {
         transaction={editingExpense ?? undefined}
         onSubmit={(input) => editTransaction(editingExpense!.id, input)}
       />
+      <ImportIncomeDialog open={importOpen} onOpenChange={setImportOpen} onImport={addTransactions} />
     </div>
   );
 }

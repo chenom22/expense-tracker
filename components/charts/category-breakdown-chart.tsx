@@ -5,11 +5,19 @@ import { formatCurrency } from "@/lib/utils";
 import { CHART_CATEGORY_PALETTE } from "@/lib/chart-colors";
 import type { CategoryBreakdownPoint } from "@/hooks/use-transactions";
 
-export function CategoryBreakdownChart({ data }: { data: CategoryBreakdownPoint[] }) {
+interface CategoryBreakdownChartProps {
+  data: CategoryBreakdownPoint[];
+  emptyMessage?: string;
+}
+
+export function CategoryBreakdownChart({
+  data,
+  emptyMessage = "אין נתונים להצגה החודש",
+}: CategoryBreakdownChartProps) {
   if (data.length === 0) {
     return (
       <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">
-        אין הוצאות החודש להצגה
+        {emptyMessage}
       </div>
     );
   }

@@ -42,6 +42,16 @@ export function useTransactions(businessId: BusinessId) {
     [load]
   );
 
+  const addTransactions = useCallback(
+    async (inputs: TransactionInput[]) => {
+      for (const input of inputs) {
+        await repository.createTransaction(input);
+      }
+      await load();
+    },
+    [load]
+  );
+
   const editTransaction = useCallback(
     async (id: string, input: TransactionInput) => {
       await repository.updateTransaction(id, input);
@@ -106,13 +116,26 @@ export function useTransactions(businessId: BusinessId) {
       .sort((a, b) => b.total - a.total);
   }, [transactions, currentMonth]);
 
+  const channelBreakdown = useMemo<CategoryBreakdownPoint[]>(() => {
+    const map = new Map<string, number>();
+    for (const t of transactions) {
+      if (t.type !== "income" || monthKey(t.date) !== currentMonth) continue;
+      map.set(t.channel, (map.get(t.channel) ?? 0) + t.amount);
+    }
+    return Array.from(map.entries())
+      .map(([category, total]) => ({ category, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [transactions, currentMonth]);
+
   return {
     transactions,
     loading,
     monthStats,
     monthlySeries,
     categoryBreakdown,
+    channelBreakdown,
     addTransaction,
+    addTransactions,
     editTransaction,
     removeTransaction,
   };

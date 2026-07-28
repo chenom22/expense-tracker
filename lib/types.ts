@@ -26,6 +26,7 @@ export interface Business {
   name: string;
   incomeCategories: string[];
   expenseCategories: string[];
+  incomeChannels: string[];
 }
 
 interface BaseTransaction {
@@ -42,6 +43,7 @@ interface BaseTransaction {
 export interface IncomeTransaction extends BaseTransaction {
   type: "income";
   source: string;
+  channel: string;
 }
 
 export interface ExpenseTransaction extends BaseTransaction {
@@ -55,6 +57,17 @@ export type Transaction = IncomeTransaction | ExpenseTransaction;
 export type TransactionInput =
   | Omit<IncomeTransaction, "id" | "createdAt">
   | Omit<ExpenseTransaction, "id" | "createdAt">;
+
+export interface RecurringVendor {
+  id: string;
+  businessId: BusinessId;
+  name: string;
+  category: string;
+  paymentMethod: PaymentMethod;
+  defaultAmount?: number;
+}
+
+export type RecurringVendorInput = Omit<RecurringVendor, "id">;
 
 export interface Inquiry {
   id: string;
