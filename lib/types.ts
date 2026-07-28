@@ -55,3 +55,15 @@ export type Transaction = IncomeTransaction | ExpenseTransaction;
 export type TransactionInput =
   | Omit<IncomeTransaction, "id" | "createdAt">
   | Omit<ExpenseTransaction, "id" | "createdAt">;
+
+export interface Inquiry {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  subject: string;
+  message: string;
+  created_at: string;
+}
+
+export type InquiryInput = Omit<Inquiry, "id" | "created_at">;
