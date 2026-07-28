@@ -9,7 +9,7 @@ import { TransactionFilters, type TransactionTypeFilter } from "@/components/tra
 import { TransactionTable } from "@/components/transactions/transaction-table";
 import { IncomeFormDialog } from "@/components/transactions/income-form-dialog";
 import { ExpenseFormDialog } from "@/components/transactions/expense-form-dialog";
-import { ImportIncomeDialog } from "@/components/transactions/import-income-dialog";
+import { ImportTransactionsDialog } from "@/components/transactions/import-transactions-dialog";
 import { useTransactionsContext } from "@/context/transactions-context";
 import { useBusiness } from "@/context/business-context";
 import { monthKey } from "@/lib/utils";
@@ -19,7 +19,7 @@ export default function TransactionsPage() {
   const { transactions, editTransaction, removeTransaction, addTransactions, clearAllTransactions } =
     useTransactionsContext();
   const { business } = useBusiness();
-  const [importOpen, setImportOpen] = useState(false);
+  const [importType, setImportType] = useState<"income" | "expense" | null>(null);
 
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState("all");
@@ -91,10 +91,14 @@ export default function TransactionsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>כל התנועות</CardTitle>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setImportOpen(true)}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={() => setImportType("income")}>
               <Upload className="size-4" />
               ייבוא הכנסות מקובץ
+            </Button>
+            <Button variant="outline" onClick={() => setImportType("expense")}>
+              <Upload className="size-4" />
+              ייבוא הוצאות מקובץ
             </Button>
             {transactions.length > 0 && (
               <Button variant="ghost" className="text-destructive" onClick={handleClearAll}>
@@ -133,7 +137,14 @@ export default function TransactionsPage() {
         transaction={editingExpense ?? undefined}
         onSubmit={(input) => editTransaction(editingExpense!.id, input)}
       />
-      <ImportIncomeDialog open={importOpen} onOpenChange={setImportOpen} onImport={addTransactions} />
+      {importType && (
+        <ImportTransactionsDialog
+          type={importType}
+          open={importType !== null}
+          onOpenChange={(open) => !open && setImportType(null)}
+          onImport={addTransactions}
+        />
+      )}
     </div>
   );
 }

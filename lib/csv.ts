@@ -47,13 +47,18 @@ function normalizeHeader(header: string): string {
   return header.trim().toLowerCase().replace(/["'׳"]/g, "").replace(/\s+/g, " ");
 }
 
-const FIELD_ALIASES: Record<"date" | "amount" | "source" | "category" | "paymentMethod" | "channel" | "note", string[]> = {
+const FIELD_ALIASES: Record<
+  "date" | "amount" | "source" | "vendor" | "category" | "paymentMethod" | "channel" | "recurrence" | "note",
+  string[]
+> = {
   date: ["תאריך", "date"],
   amount: ["סכום", "סכום כולל", "סה\"כ", "סהכ", "total", "amount", "sum"],
   source: ["לקוח", "שם לקוח", "שם", "customer", "source", "מקור", "מקור הכנסה"],
+  vendor: ["ספק", "שם ספק", "שם", "שם עסק", "vendor", "supplier"],
   category: ["קטגוריה", "category"],
   paymentMethod: ["אמצעי תשלום", "אמצעי", "payment", "payment method"],
   channel: ["ערוץ", "ערוץ הכנסה", "channel"],
+  recurrence: ["סוג הוצאה", "סוג", "recurrence", "type"],
   note: ["הערה", "הערות", "note", "notes", "תיאור", "description"],
 };
 
@@ -66,6 +71,13 @@ function findColumnIndex(headers: string[], aliases: string[]): number {
   return -1;
 }
 
+function excelSerialToISO(serial: number): string | null {
+  if (!Number.isFinite(serial) || serial < 20000 || serial > 60000) return null;
+  const utcDays = Math.floor(serial - 25569); // 25569 = days between 1899-12-30 and 1970-01-01
+  const date = new Date(utcDays * 86400 * 1000);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+}
+
 function parseDateCell(raw: string): string | null {
   const value = raw.trim();
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
@@ -76,6 +88,10 @@ function parseDateCell(raw: string): string | null {
     const year = y.length === 2 ? `20${y}` : y;
     return `${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
+
+  // Excel serial date fallback (in case a date cell arrives unformatted).
+  if (/^\d+(\.\d+)?$/.test(value)) return excelSerialToISO(Number(value));
+
   return null;
 }
 
@@ -103,11 +119,13 @@ export interface CsvParseResult {
   errors: string[];
 }
 
-export function parseIncomeCsv(
-  text: string,
-  options: { defaultCategory: string; defaultPaymentMethod: string; defaultChannel: string }
-): CsvParseResult {
-  const table = parseCsvRows(text);
+export interface IncomeImportOptions {
+  defaultCategory: string;
+  defaultPaymentMethod: string;
+  defaultChannel: string;
+}
+
+function parseIncomeTable(table: string[][], options: IncomeImportOptions): CsvParseResult {
   if (table.length < 2) {
     return { rows: [], errors: ["הקובץ ריק או לא מכיל שורות נתונים"] };
   }
@@ -167,4 +185,122 @@ export function parseIncomeCsv(
   });
 
   return { rows, errors };
+}
+
+export function parseIncomeCsv(text: string, options: IncomeImportOptions): CsvParseResult {
+  return parseIncomeTable(parseCsvRows(text), options);
+}
+
+export async function parseIncomeXlsx(
+  buffer: ArrayBuffer,
+  options: IncomeImportOptions
+): Promise<CsvParseResult> {
+  return parseIncomeTable(await readXlsxTable(buffer), options);
+}
+
+export interface ParsedExpenseRow {
+  rowNumber: number;
+  date: string;
+  amount: number;
+  vendor: string;
+  category: string;
+  paymentMethod: string;
+  recurrence: string;
+  note?: string;
+}
+
+export interface ExpenseParseResult {
+  rows: ParsedExpenseRow[];
+  errors: string[];
+}
+
+export interface ExpenseImportOptions {
+  defaultCategory: string;
+  defaultPaymentMethod: string;
+  defaultRecurrence: string;
+}
+
+function parseExpenseTable(table: string[][], options: ExpenseImportOptions): ExpenseParseResult {
+  if (table.length < 2) {
+    return { rows: [], errors: ["הקובץ ריק או לא מכיל שורות נתונים"] };
+  }
+
+  const [headerRow, ...dataRows] = table;
+  const dateIdx = findColumnIndex(headerRow, FIELD_ALIASES.date);
+  const amountIdx = findColumnIndex(headerRow, FIELD_ALIASES.amount);
+  const vendorIdx = findColumnIndex(headerRow, FIELD_ALIASES.vendor);
+
+  if (dateIdx === -1 || amountIdx === -1 || vendorIdx === -1) {
+    return {
+      rows: [],
+      errors: [
+        `לא נמצאו כל העמודות הנדרשות בקובץ. צריך עמודות עבור: תאריך, סכום, וספק/שם ההוצאה (שמות התגלו: ${headerRow.join(", ")})`,
+      ],
+    };
+  }
+
+  const categoryIdx = findColumnIndex(headerRow, FIELD_ALIASES.category);
+  const paymentIdx = findColumnIndex(headerRow, FIELD_ALIASES.paymentMethod);
+  const recurrenceIdx = findColumnIndex(headerRow, FIELD_ALIASES.recurrence);
+  const noteIdx = findColumnIndex(headerRow, FIELD_ALIASES.note);
+
+  const rows: ParsedExpenseRow[] = [];
+  const errors: string[] = [];
+
+  dataRows.forEach((cells, i) => {
+    const rowNumber = i + 2;
+    const date = parseDateCell(cells[dateIdx] ?? "");
+    const amount = parseAmountCell(cells[amountIdx] ?? "");
+    const vendor = (cells[vendorIdx] ?? "").trim();
+
+    if (!date) {
+      errors.push(`שורה ${rowNumber}: לא ניתן לפרש את התאריך "${cells[dateIdx] ?? ""}"`);
+      return;
+    }
+    if (amount === null) {
+      errors.push(`שורה ${rowNumber}: לא ניתן לפרש את הסכום "${cells[amountIdx] ?? ""}"`);
+      return;
+    }
+    if (!vendor) {
+      errors.push(`שורה ${rowNumber}: חסר שם ספק/הוצאה`);
+      return;
+    }
+
+    rows.push({
+      rowNumber,
+      date,
+      amount,
+      vendor,
+      category: categoryIdx !== -1 ? cells[categoryIdx]?.trim() || options.defaultCategory : options.defaultCategory,
+      paymentMethod:
+        paymentIdx !== -1 ? cells[paymentIdx]?.trim() || options.defaultPaymentMethod : options.defaultPaymentMethod,
+      recurrence:
+        recurrenceIdx !== -1 ? cells[recurrenceIdx]?.trim() || options.defaultRecurrence : options.defaultRecurrence,
+      note: noteIdx !== -1 ? cells[noteIdx]?.trim() || undefined : undefined,
+    });
+  });
+
+  return { rows, errors };
+}
+
+export function parseExpenseCsv(text: string, options: ExpenseImportOptions): ExpenseParseResult {
+  return parseExpenseTable(parseCsvRows(text), options);
+}
+
+export async function parseExpenseXlsx(
+  buffer: ArrayBuffer,
+  options: ExpenseImportOptions
+): Promise<ExpenseParseResult> {
+  return parseExpenseTable(await readXlsxTable(buffer), options);
+}
+
+async function readXlsxTable(buffer: ArrayBuffer): Promise<string[][]> {
+  const XLSX = await import("xlsx");
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  return XLSX.utils.sheet_to_json<string[]>(sheet, {
+    header: 1,
+    raw: false,
+    defval: "",
+  }) as string[][];
 }
