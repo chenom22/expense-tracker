@@ -10,16 +10,18 @@ import { TransactionTable } from "@/components/transactions/transaction-table";
 import { IncomeFormDialog } from "@/components/transactions/income-form-dialog";
 import { ExpenseFormDialog } from "@/components/transactions/expense-form-dialog";
 import { ImportTransactionsDialog } from "@/components/transactions/import-transactions-dialog";
+import { ImportWoltPdfDialog } from "@/components/transactions/import-wolt-pdf-dialog";
 import { useTransactionsContext } from "@/context/transactions-context";
 import { useBusiness } from "@/context/business-context";
 import { monthKey } from "@/lib/utils";
 import type { IncomeTransaction, ExpenseTransaction, Transaction } from "@/lib/types";
 
 export default function TransactionsPage() {
-  const { transactions, editTransaction, removeTransaction, addTransactions, clearAllTransactions } =
+  const { transactions, editTransaction, removeTransaction, addTransaction, addTransactions, clearAllTransactions } =
     useTransactionsContext();
   const { business } = useBusiness();
   const [importType, setImportType] = useState<"income" | "expense" | null>(null);
+  const [woltImportOpen, setWoltImportOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState("all");
@@ -100,6 +102,12 @@ export default function TransactionsPage() {
               <Upload className="size-4" />
               ייבוא הוצאות מקובץ
             </Button>
+            {business.incomeChannels.some((c) => c.includes("וולט")) && (
+              <Button variant="outline" onClick={() => setWoltImportOpen(true)}>
+                <Upload className="size-4" />
+                ייבוא Wolt מ-PDF
+              </Button>
+            )}
             {transactions.length > 0 && (
               <Button variant="ghost" className="text-destructive" onClick={handleClearAll}>
                 <Trash2 className="size-4" />
@@ -145,6 +153,7 @@ export default function TransactionsPage() {
           onImport={addTransactions}
         />
       )}
+      <ImportWoltPdfDialog open={woltImportOpen} onOpenChange={setWoltImportOpen} onImport={addTransaction} />
     </div>
   );
 }

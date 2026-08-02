@@ -4,20 +4,55 @@ import Link from "next/link";
 import { ArrowDownCircle, ArrowUpCircle, Receipt, TrendingUp, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { KpiCard } from "@/components/kpi-card";
 import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
 import { CategoryBreakdownChart } from "@/components/charts/category-breakdown-chart";
 import { useTransactionsContext } from "@/context/transactions-context";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, monthLabel } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { transactions, monthStats, monthlySeries, categoryBreakdown, channelBreakdown, loading } =
-    useTransactionsContext();
+  const {
+    transactions,
+    monthStats,
+    monthlySeries,
+    categoryBreakdown,
+    channelBreakdown,
+    loading,
+    selectedMonth,
+    setSelectedMonth,
+    availableMonths,
+  } = useTransactionsContext();
 
   const recent = transactions.slice(0, 6);
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <Select
+          value={selectedMonth}
+          onValueChange={(v) => v && setSelectedMonth(v)}
+          items={Object.fromEntries(availableMonths.map((m) => [m, monthLabel(m)]))}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="בחרו חודש" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableMonths.map((m) => (
+              <SelectItem key={m} value={m}>
+                {monthLabel(m)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <KpiCard label="הכנסות החודש" value={formatCurrency(monthStats.incomeTotal)} icon={ArrowUpCircle} tone="income" />
         <KpiCard label="הוצאות החודש" value={formatCurrency(monthStats.expenseTotal)} icon={ArrowDownCircle} tone="expense" />

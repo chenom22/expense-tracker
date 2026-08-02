@@ -73,10 +73,16 @@ export function useTransactions(businessId: BusinessId) {
     await load();
   }, [load]);
 
-  const currentMonth = currentMonthKey();
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey());
+
+  const availableMonths = useMemo(() => {
+    const set = new Set(transactions.map((t) => monthKey(t.date)));
+    set.add(currentMonthKey());
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [transactions]);
 
   const monthStats = useMemo(() => {
-    const monthTransactions = transactions.filter((t) => monthKey(t.date) === currentMonth);
+    const monthTransactions = transactions.filter((t) => monthKey(t.date) === selectedMonth);
     const income = monthTransactions.filter((t) => t.type === "income");
     const expense = monthTransactions.filter((t) => t.type === "expense");
     const incomeTotal = income.reduce((sum, t) => sum + t.amount, 0);
@@ -88,7 +94,7 @@ export function useTransactions(businessId: BusinessId) {
       incomeCount: income.length,
       expenseCount: expense.length,
     };
-  }, [transactions, currentMonth]);
+  }, [transactions, selectedMonth]);
 
   const monthlySeries = useMemo<MonthlySeriesPoint[]>(() => {
     const map = new Map<string, { income: number; expense: number }>();
@@ -113,28 +119,31 @@ export function useTransactions(businessId: BusinessId) {
   const categoryBreakdown = useMemo<CategoryBreakdownPoint[]>(() => {
     const map = new Map<string, number>();
     for (const t of transactions) {
-      if (t.type !== "expense" || monthKey(t.date) !== currentMonth) continue;
+      if (t.type !== "expense" || monthKey(t.date) !== selectedMonth) continue;
       map.set(t.category, (map.get(t.category) ?? 0) + t.amount);
     }
     return Array.from(map.entries())
       .map(([category, total]) => ({ category, total }))
       .sort((a, b) => b.total - a.total);
-  }, [transactions, currentMonth]);
+  }, [transactions, selectedMonth]);
 
   const channelBreakdown = useMemo<CategoryBreakdownPoint[]>(() => {
     const map = new Map<string, number>();
     for (const t of transactions) {
-      if (t.type !== "income" || monthKey(t.date) !== currentMonth) continue;
+      if (t.type !== "income" || monthKey(t.date) !== selectedMonth) continue;
       map.set(t.channel, (map.get(t.channel) ?? 0) + t.amount);
     }
     return Array.from(map.entries())
       .map(([category, total]) => ({ category, total }))
       .sort((a, b) => b.total - a.total);
-  }, [transactions, currentMonth]);
+  }, [transactions, selectedMonth]);
 
   return {
     transactions,
     loading,
+    selectedMonth,
+    setSelectedMonth,
+    availableMonths,
     monthStats,
     monthlySeries,
     categoryBreakdown,
