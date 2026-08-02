@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -25,6 +25,7 @@ import {
   parseIncomeXlsx,
   parseExpenseCsv,
   parseExpenseXlsx,
+  aggregateIncomeRowsByDay,
   type ParsedIncomeRow,
   type ParsedExpenseRow,
 } from "@/lib/csv";
@@ -50,17 +51,25 @@ function isXlsxFile(file: File): boolean {
 
 export function ImportTransactionsDialog({ type, open, onOpenChange, onImport }: ImportTransactionsDialogProps) {
   const { business } = useBusiness();
-  const [incomeRows, setIncomeRows] = useState<ParsedIncomeRow[]>([]);
+  const [rawIncomeRows, setRawIncomeRows] = useState<ParsedIncomeRow[]>([]);
   const [expenseRows, setExpenseRows] = useState<ParsedExpenseRow[]>([]);
+  const [skippedByType, setSkippedByType] = useState<Record<string, number> | undefined>(undefined);
+  const [aggregateByDay, setAggregateByDay] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [fileName, setFileName] = useState("");
   const [importing, setImporting] = useState(false);
 
+  const incomeRows = useMemo(
+    () => (aggregateByDay ? aggregateIncomeRowsByDay(rawIncomeRows) : rawIncomeRows),
+    [aggregateByDay, rawIncomeRows]
+  );
   const rowCount = type === "income" ? incomeRows.length : expenseRows.length;
 
   function reset() {
-    setIncomeRows([]);
+    setRawIncomeRows([]);
     setExpenseRows([]);
+    setSkippedByType(undefined);
+    setAggregateByDay(false);
     setErrors([]);
     setFileName("");
   }
@@ -74,10 +83,15 @@ export function ImportTransactionsDialog({ type, open, onOpenChange, onImport }:
         defaultCategory: business.incomeCategories[business.incomeCategories.length - 1],
         defaultPaymentMethod: "אחר",
         defaultChannel: business.incomeChannels[business.incomeChannels.length - 1],
+        channels: business.incomeChannels,
+        categories: business.incomeCategories,
       };
       const result = xlsx ? await parseIncomeXlsx(await file.arrayBuffer(), options) : parseIncomeCsv(await file.text(), options);
-      setIncomeRows(result.rows);
+      setRawIncomeRows(result.rows);
       setErrors(result.errors);
+      setSkippedByType(result.skippedByType);
+      // ייבוא קופה (עם עמודת "סוג פתקית") נוטה לכלול הרבה מאוד עסקאות קטנות ליום - ברירת מחדל לאיחוד
+      setAggregateByDay(Boolean(result.skippedByType) && result.rows.length > 50);
     } else {
       const options = {
         defaultCategory: business.expenseCategories[business.expenseCategories.length - 1],
@@ -153,7 +167,7 @@ export function ImportTransactionsDialog({ type, open, onOpenChange, onImport }:
         <DialogHeader>
           <DialogTitle>{type === "income" ? "ייבוא הכנסות מקובץ" : "ייבוא הוצאות מקובץ"}</DialogTitle>
           <DialogDescription>
-            העלו קובץ CSV או Excel (למשל ייצוא מ-Sumit) עם עמודות תאריך, סכום, ו
+            העלו קובץ CSV או Excel (למשל ייצוא מ-Sumit או מקופה) עם עמודות תאריך, סכום, ו
             {type === "income" ? "לקוח/מקור" : "ספק"}. שדות נוספים אינם חובה.
           </DialogDescription>
         </DialogHeader>
@@ -179,8 +193,28 @@ export function ImportTransactionsDialog({ type, open, onOpenChange, onImport }:
             {fileName && <span className="text-sm text-muted-foreground">{fileName}</span>}
           </div>
 
+          {type === "income" && skippedByType && Object.keys(skippedByType).length > 0 && (
+            <div className="rounded-lg border border-border bg-muted/50 p-3 text-xs text-muted-foreground">
+              זוהתה עמודת &quot;סוג פתקית&quot;. שורות שדולגו כי אינן מכירה בפועל:{" "}
+              {Object.entries(skippedByType)
+                .map(([k, v]) => `${k} (${v})`)
+                .join(", ")}
+            </div>
+          )}
+
+          {type === "income" && rawIncomeRows.length > 20 && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={aggregateByDay}
+                onChange={(e) => setAggregateByDay(e.target.checked)}
+              />
+              איחוד לתנועה אחת ליום (מומלץ כשיש הרבה עסקאות קטנות, כגון ייבוא קופה)
+            </label>
+          )}
+
           {errors.length > 0 && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+            <div className="max-h-32 overflow-auto rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
               {errors.map((e, i) => (
                 <p key={i}>{e}</p>
               ))}

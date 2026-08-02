@@ -48,18 +48,19 @@ function normalizeHeader(header: string): string {
 }
 
 const FIELD_ALIASES: Record<
-  "date" | "amount" | "source" | "vendor" | "category" | "paymentMethod" | "channel" | "recurrence" | "note",
+  "date" | "amount" | "source" | "vendor" | "category" | "paymentMethod" | "channel" | "recurrence" | "note" | "recordType",
   string[]
 > = {
-  date: ["תאריך", "date"],
+  date: ["תאריך", "תאריך מכירה", "date"],
   amount: ["סכום", "סכום כולל", "סה\"כ", "סהכ", "total", "amount", "sum"],
   source: ["לקוח", "שם לקוח", "שם", "customer", "source", "מקור", "מקור הכנסה"],
   vendor: ["ספק", "שם ספק", "שם", "שם עסק", "vendor", "supplier"],
   category: ["קטגוריה", "category"],
   paymentMethod: ["אמצעי תשלום", "אמצעי", "payment", "payment method"],
   channel: ["ערוץ", "ערוץ הכנסה", "channel"],
-  recurrence: ["סוג הוצאה", "סוג", "recurrence", "type"],
+  recurrence: ["סוג הוצאה", "recurrence"],
   note: ["הערה", "הערות", "note", "notes", "תיאור", "description"],
+  recordType: ["סוג פתקית", "סוג", "type"],
 };
 
 function findColumnIndex(headers: string[], aliases: string[]): number {
@@ -69,6 +70,21 @@ function findColumnIndex(headers: string[], aliases: string[]): number {
     if (idx !== -1) return idx;
   }
   return -1;
+}
+
+/**
+ * חלק מהדוחות (למשל ייצוא מקופה) כוללים שורות כותרת/מטא-דאטה לפני שורת הכותרות
+ * האמיתית. סורקים את 10 השורות הראשונות ומאתרים את הראשונה שמכילה גם עמודת
+ * תאריך וגם עמודת סכום - זו כנראה שורת הכותרות האמיתית.
+ */
+function findHeaderRowIndex(table: string[][]): number {
+  const limit = Math.min(table.length, 10);
+  for (let i = 0; i < limit; i++) {
+    const hasDate = findColumnIndex(table[i], FIELD_ALIASES.date) !== -1;
+    const hasAmount = findColumnIndex(table[i], FIELD_ALIASES.amount) !== -1;
+    if (hasDate && hasAmount) return i;
+  }
+  return 0;
 }
 
 function excelSerialToISO(serial: number): string | null {
@@ -117,12 +133,35 @@ export interface ParsedIncomeRow {
 export interface CsvParseResult {
   rows: ParsedIncomeRow[];
   errors: string[];
+  /** נספרים כשיש עמודת "סוג פתקית" (כגון בייצוא מקופה) וחלק מהשורות מדולגות בכוונה */
+  skippedByType?: Record<string, number>;
 }
 
 export interface IncomeImportOptions {
   defaultCategory: string;
   defaultPaymentMethod: string;
   defaultChannel: string;
+  /** רשימת ערוצי ההכנסה של העסק, לזיהוי ערוץ "קופה/משלוחים" אוטומטית מתוך סוג פתקית */
+  channels?: string[];
+  /** רשימת קטגוריות ההכנסה של העסק, לזיהוי קטגוריית "מכירות" אוטומטית מתוך סוג פתקית */
+  categories?: string[];
+}
+
+// ערכים שמופיעים בעמודת "סוג פתקית" בייצוא קופה שאינם מכירה בפועל (שורת סה"כ/סיכום)
+const NON_SALE_RECORD_TYPES = ["סה\"כ", "סהכ", "total"];
+const CREDIT_RECORD_TYPES = ["זיכוי", "credit", "refund"];
+const DELIVERY_RECORD_TYPES = ["תעודת משלוח", "משלוח", "delivery"];
+
+function pickChannelForRecordType(recordType: string, options: IncomeImportOptions): string {
+  const isDelivery = DELIVERY_RECORD_TYPES.some((v) => recordType.includes(v));
+  const keyword = isDelivery ? "משלוח" : "קופה";
+  const match = options.channels?.find((c) => c.includes(keyword));
+  return match ?? options.defaultChannel;
+}
+
+function pickCategoryForSaleRecord(options: IncomeImportOptions): string {
+  const match = options.categories?.find((c) => c.includes("מכיר"));
+  return match ?? options.defaultCategory;
 }
 
 function parseIncomeTable(table: string[][], options: IncomeImportOptions): CsvParseResult {
@@ -130,16 +169,19 @@ function parseIncomeTable(table: string[][], options: IncomeImportOptions): CsvP
     return { rows: [], errors: ["הקובץ ריק או לא מכיל שורות נתונים"] };
   }
 
-  const [headerRow, ...dataRows] = table;
+  const headerIndex = findHeaderRowIndex(table);
+  const headerRow = table[headerIndex];
+  const dataRows = table.slice(headerIndex + 1);
+
   const dateIdx = findColumnIndex(headerRow, FIELD_ALIASES.date);
   const amountIdx = findColumnIndex(headerRow, FIELD_ALIASES.amount);
   const sourceIdx = findColumnIndex(headerRow, FIELD_ALIASES.source);
 
-  if (dateIdx === -1 || amountIdx === -1 || sourceIdx === -1) {
+  if (dateIdx === -1 || amountIdx === -1) {
     return {
       rows: [],
       errors: [
-        `לא נמצאו כל העמודות הנדרשות בקובץ. צריך עמודות עבור: תאריך, סכום, ולקוח/מקור (שמות התגלו: ${headerRow.join(", ")})`,
+        `לא נמצאו כל העמודות הנדרשות בקובץ. צריך עמודות עבור תאריך וסכום (שמות התגלו: ${headerRow.join(", ")})`,
       ],
     };
   }
@@ -148,15 +190,28 @@ function parseIncomeTable(table: string[][], options: IncomeImportOptions): CsvP
   const paymentIdx = findColumnIndex(headerRow, FIELD_ALIASES.paymentMethod);
   const channelIdx = findColumnIndex(headerRow, FIELD_ALIASES.channel);
   const noteIdx = findColumnIndex(headerRow, FIELD_ALIASES.note);
+  const recordTypeIdx = findColumnIndex(headerRow, FIELD_ALIASES.recordType);
 
   const rows: ParsedIncomeRow[] = [];
   const errors: string[] = [];
+  const skippedByType: Record<string, number> = {};
 
   dataRows.forEach((cells, i) => {
-    const rowNumber = i + 2; // +1 for header, +1 for 1-indexing
+    const rowNumber = headerIndex + i + 2;
+    const recordType = recordTypeIdx !== -1 ? (cells[recordTypeIdx] ?? "").trim() : "";
+
+    if (recordTypeIdx !== -1) {
+      const isNonSale = NON_SALE_RECORD_TYPES.some((v) => recordType.includes(v));
+      const isCredit = CREDIT_RECORD_TYPES.some((v) => recordType.includes(v));
+      if (isNonSale || isCredit || !recordType) {
+        skippedByType[recordType || "(ריק)"] = (skippedByType[recordType || "(ריק)"] ?? 0) + 1;
+        return;
+      }
+    }
+
     const date = parseDateCell(cells[dateIdx] ?? "");
     const amount = parseAmountCell(cells[amountIdx] ?? "");
-    const source = (cells[sourceIdx] ?? "").trim();
+    const source = sourceIdx !== -1 ? (cells[sourceIdx] ?? "").trim() : "";
 
     if (!date) {
       errors.push(`שורה ${rowNumber}: לא ניתן לפרש את התאריך "${cells[dateIdx] ?? ""}"`);
@@ -166,25 +221,59 @@ function parseIncomeTable(table: string[][], options: IncomeImportOptions): CsvP
       errors.push(`שורה ${rowNumber}: לא ניתן לפרש את הסכום "${cells[amountIdx] ?? ""}"`);
       return;
     }
-    if (!source) {
-      errors.push(`שורה ${rowNumber}: חסר שם לקוח/מקור`);
-      return;
-    }
 
     rows.push({
       rowNumber,
       date,
       amount,
-      source,
-      category: categoryIdx !== -1 ? cells[categoryIdx]?.trim() || options.defaultCategory : options.defaultCategory,
+      source: source || "לקוח קופה",
+      category:
+        categoryIdx !== -1
+          ? cells[categoryIdx]?.trim() || options.defaultCategory
+          : recordTypeIdx !== -1
+            ? pickCategoryForSaleRecord(options)
+            : options.defaultCategory,
       paymentMethod:
         paymentIdx !== -1 ? cells[paymentIdx]?.trim() || options.defaultPaymentMethod : options.defaultPaymentMethod,
-      channel: channelIdx !== -1 ? cells[channelIdx]?.trim() || options.defaultChannel : options.defaultChannel,
+      channel:
+        channelIdx !== -1
+          ? cells[channelIdx]?.trim() || options.defaultChannel
+          : recordTypeIdx !== -1
+            ? pickChannelForRecordType(recordType, options)
+            : options.defaultChannel,
       note: noteIdx !== -1 ? cells[noteIdx]?.trim() || undefined : undefined,
     });
   });
 
-  return { rows, errors };
+  return { rows, errors, skippedByType: recordTypeIdx !== -1 ? skippedByType : undefined };
+}
+
+/** מאחד שורות הכנסה לפי (תאריך, ערוץ) - שימושי לייבוא קופה עם עשרות/מאות עסקאות ליום */
+export function aggregateIncomeRowsByDay(rows: ParsedIncomeRow[]): ParsedIncomeRow[] {
+  const groups = new Map<string, ParsedIncomeRow[]>();
+  for (const row of rows) {
+    const key = `${row.date}__${row.channel}`;
+    const group = groups.get(key) ?? [];
+    group.push(row);
+    groups.set(key, group);
+  }
+
+  return Array.from(groups.entries())
+    .map(([key, group], index) => {
+      const [date] = key.split("__");
+      const total = group.reduce((sum, r) => sum + r.amount, 0);
+      return {
+        rowNumber: index,
+        date,
+        amount: total,
+        source: `מכירות (${group.length} עסקאות)`,
+        category: group[0].category,
+        paymentMethod: group[0].paymentMethod,
+        channel: group[0].channel,
+        note: undefined,
+      } satisfies ParsedIncomeRow;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export function parseIncomeCsv(text: string, options: IncomeImportOptions): CsvParseResult {
@@ -225,7 +314,10 @@ function parseExpenseTable(table: string[][], options: ExpenseImportOptions): Ex
     return { rows: [], errors: ["הקובץ ריק או לא מכיל שורות נתונים"] };
   }
 
-  const [headerRow, ...dataRows] = table;
+  const headerIndex = findHeaderRowIndex(table);
+  const headerRow = table[headerIndex];
+  const dataRows = table.slice(headerIndex + 1);
+
   const dateIdx = findColumnIndex(headerRow, FIELD_ALIASES.date);
   const amountIdx = findColumnIndex(headerRow, FIELD_ALIASES.amount);
   const vendorIdx = findColumnIndex(headerRow, FIELD_ALIASES.vendor);
@@ -248,7 +340,7 @@ function parseExpenseTable(table: string[][], options: ExpenseImportOptions): Ex
   const errors: string[] = [];
 
   dataRows.forEach((cells, i) => {
-    const rowNumber = i + 2;
+    const rowNumber = headerIndex + i + 2;
     const date = parseDateCell(cells[dateIdx] ?? "");
     const amount = parseAmountCell(cells[amountIdx] ?? "");
     const vendor = (cells[vendorIdx] ?? "").trim();
