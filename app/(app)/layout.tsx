@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ListTree, Mail, Menu, Plus, Truck, Wallet, X } from "lucide-react";
+import { LayoutDashboard, ListTree, Menu, Plus, Truck, Wallet, X } from "lucide-react";
 import { BusinessSwitcher } from "@/components/business-switcher";
 import { Button } from "@/components/ui/button";
 import { TransactionsProvider, useTransactionsContext } from "@/context/transactions-context";
@@ -15,7 +15,6 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "דשבורד", icon: LayoutDashboard },
   { href: "/transactions", label: "תנועות", icon: ListTree },
   { href: "/vendors", label: "ספקים קבועים", icon: Truck },
-  { href: "/contact", label: "צור קשר", icon: Mail },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

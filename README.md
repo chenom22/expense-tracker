@@ -8,7 +8,7 @@
 - **Tailwind CSS** + **shadcn/ui** (מבוסס Base UI)
 - **Recharts** לגרפים
 - **react-hook-form** + **zod** לטפסים ואימות
-- **localStorage** כשכבת נתונים זמנית (ראו הרחבה למטה)
+- **Supabase** (Postgres) כשכבת נתונים משותפת בין מכשירים (ראו הרחבה למטה)
 
 ## הרצה מקומית
 
@@ -46,18 +46,9 @@ interface DataRepository {
 }
 ```
 
-המימוש הנוכחי, `lib/data/local-storage-repository.ts`, שומר הכל ב-`localStorage` בדפדפן. כל המתודות מוגדרות כ-`async` מראש, כך שהחלפה עתידית ב-DB/API אמיתי לא תדרוש שינוי בקוד שצורך את ה-repository.
+המימוש הנוכחי, `lib/data/supabase-repository.ts`, שומר הכל בטבלאות `transactions` ו-`vendors` ב-Supabase, כך שהנתונים מסונכרנים בין כל המכשירים. גישה מתבצעת דרך ה-anon key הציבורי (ללא מסך התחברות) - מתאים לשימוש אישי/משפחתי, לא לאפליקציה עם משתמשים מרובים שדורשת הפרדת הרשאות.
 
-**כדי לחבר מסד נתונים אמיתי מחר:**
-
-1. כתבו מימוש חדש ל-`DataRepository` (למשל מעל `fetch` מול API, או Prisma/Supabase וכו').
-2. החליפו את השורה היחידה ב-`lib/data/index.ts`:
-   ```ts
-   export const repository: DataRepository = new LocalStorageRepository();
-   // ->
-   export const repository: DataRepository = new MyApiRepository();
-   ```
-3. שאר האפליקציה (hooks, קומפוננטות, עמודים) לא צריכה להשתנות כלל.
+עד לגרסה זו הנתונים נשמרו ב-`localStorage`; בעת הטעינה הראשונה בכל דפדפן מופעלת הגירה חד-פעמית (`lib/data/migrate-local-storage.ts`) שמעבירה נתונים ישנים שנשמרו מקומית אל Supabase.
 
 ### מבנה תיקיות עיקרי
 
@@ -79,5 +70,5 @@ lib/data/                שכבת הנתונים (repository, seed, businesses)
 ## הערות
 
 - העיצוב מותאם RTL מלא (`dir="rtl"`, קלאסים לוגיים `ms-`/`me-`/`ps-`/`pe-`).
-- כל עסק שומר נתונים נפרדים ב-localStorage, כולל גוון accent עדין משלו בממשק.
+- כל עסק מסונן לפי `business_id` ב-Supabase, כולל גוון accent עדין משלו בממשק.
 - מחיקת תנועה דורשת אישור (confirm) לפני ביצוע.

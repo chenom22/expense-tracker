@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { BUSINESSES, getBusiness } from "@/lib/data/businesses";
+import { migrateLocalStorageIfNeeded } from "@/lib/data/migrate-local-storage";
 import type { Business, BusinessId } from "@/lib/types";
 
 const CURRENT_BUSINESS_KEY = "expense-tracker:current-business";
@@ -31,6 +32,10 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     document.body.setAttribute("data-business-theme", businessId);
   }, [businessId]);
+
+  useEffect(() => {
+    migrateLocalStorageIfNeeded();
+  }, []);
 
   function setBusinessId(id: BusinessId) {
     setBusinessIdState(id);

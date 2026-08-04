@@ -68,15 +68,3 @@ export interface RecurringVendor {
 }
 
 export type RecurringVendorInput = Omit<RecurringVendor, "id">;
-
-export interface Inquiry {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  subject: string;
-  message: string;
-  created_at: string;
-}
-
-export type InquiryInput = Omit<Inquiry, "id" | "created_at">;
